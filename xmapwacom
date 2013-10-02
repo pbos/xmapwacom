@@ -1,0 +1,79 @@
+#!/usr/bin/python2
+# Developed against xsetwacom 0.23.0.
+# xsetwacom's parameters and output formats are assumed to be subject to change
+# without notice. Hence this script is subject to break without notice. Please
+# let me know when it does.
+import pygtk
+pygtk.require('2.0')
+import gtk
+import subprocess
+
+device_list = subprocess.Popen(["xsetwacom", "--list", "devices"],
+                               stdout=subprocess.PIPE).communicate()[0]
+
+tablets = []
+for line in device_list.strip().split('\n'):
+  if line == "":
+    continue
+  (name, dev_id, dev_type) = [token.strip() for token in line.split('\t')]
+  dev_type = dev_type.split()[-1]
+  if dev_type != "STYLUS":
+    continue
+  dev_id = dev_id.split()[-1]
+  tablets.append((name, dev_id))
+
+screen = gtk.Window().get_screen()
+width = screen.get_width()
+height = screen.get_height()
+monitors = screen.get_n_monitors()
+
+outputs = [screen.get_monitor_plug_name(i) for i in range(monitors)]
+
+def map_to_output(widget, tablet_port, monitor):
+  if not monitor: # Entire screen
+    subprocess.call(["xsetwacom", "--set", tablet_port,
+                     "MapToOutput", "%dx%d+0+0" % (width, height)])
+  else:
+    subprocess.call(["xsetwacom", "--set", tablet_port, "MapToOutput", monitor])
+
+def popup_menu_cb(widget, button, time, menu):
+  menu.show_all()
+  menu.popup(None, None, gtk.status_icon_position_menu, 3, time, statusIcon)
+
+def quit_cb( widget):
+  gtk.main_quit()
+
+menu = gtk.Menu()
+if not tablets:
+  no_tablets = gtk.MenuItem("No Tablets Connected")
+  no_tablets.set_sensitive(False)
+  menu.append(no_tablets)
+else:
+  for (idx, (tablet_name, tablet_port)) in enumerate(tablets):
+    menu_tablet = gtk.MenuItem(tablet_name)
+    menu_tablet.set_sensitive(False)
+    menu.append(menu_tablet)
+    menu.append(gtk.SeparatorMenuItem())
+    menu_screen = gtk.MenuItem("Entire Screen")
+    menu_screen.connect('activate', map_to_output, tablet_port, None)
+    menu.append(menu_screen)
+    for monitor in outputs:
+      menu_output = gtk.MenuItem(monitor)
+      menu_output.connect('activate', map_to_output, tablet_port, monitor)
+      menu.append(menu_output)
+    menu.append(gtk.SeparatorMenuItem())
+
+quit_entry = gtk.ImageMenuItem(gtk.STOCK_QUIT)
+quit_entry.connect('activate', quit_cb)
+menu.append(quit_entry)
+
+statusIcon = gtk.StatusIcon()
+statusIcon.set_from_stock(gtk.STOCK_ABOUT)
+statusIcon.set_visible(True)
+statusIcon.set_tooltip('Map Tablet to Monitor')
+statusIcon.connect('popup-menu', popup_menu_cb, menu)
+
+try:
+  gtk.main()
+except KeyboardInterrupt:
+  pass
