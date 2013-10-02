@@ -1,0 +1,10 @@
+xmapwacom
+=========
+
+xmapwacom is a tool for mapping stylus inputs to monitors in X11. It creates a
+tray icon with a pop-up menu where output monitors can be selected for every
+stylus.
+
+xmapwacom requires Python 2 and pygtk. It also requires xsetwacom to perform
+actual operations. As such, it may break whenever xsetwacom changes output
+format or in parameters. Please let me know when it does.
